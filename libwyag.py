@@ -12,27 +12,45 @@ import zlib
 from fnmatch import fnmatch
 
 argparser = argparse.ArgumentParser(description="The stupid content tracker")
-argsubparsers = argparser.add_subparsers(title="Commands", dest="command") # dest="command" means that the command name will be stored in args.command
+argsubparsers = argparser.add_subparsers(title="Commands",
+                                         dest="command")  # dest="command" means that the command name will be stored in args.command
 argsubparsers.required = True
+
 
 def main(argv=sys.argv[1:]):
     args = argparser.parse_args(argv)
     match args.command:
-        case "add": cmd_add(args)
-        case "cat-file": cmd_cat_file(args)
-        case "checkout": cmd_checkout(args)
-        case "commit": cmd_commit(args)
-        case "hash-object": cmd_hash_object(args)
-        case "init": cmd_init(args)
-        case "log": cmd_log(args)
-        case "ls-tree": cmd_ls_tree(args)
-        case "merge": cmd_merge(args)
-        case "rebase": cmd_rebase(args)
-        case "rev-parse": cmd_rev_parse(args)
-        case "rm": cmd_rm(args)
-        case "show-ref": cmd_show_ref(args)
-        case "tag": cmd_tag(args)
-        case _ : raise Exception(f"Unknown command {args.command}")
+        case "add":
+            cmd_add(args)
+        case "cat-file":
+            cmd_cat_file(args)
+        case "checkout":
+            cmd_checkout(args)
+        case "commit":
+            cmd_commit(args)
+        case "hash-object":
+            cmd_hash_object(args)
+        case "init":
+            cmd_init(args)
+        case "log":
+            cmd_log(args)
+        case "ls-tree":
+            cmd_ls_tree(args)
+        case "merge":
+            cmd_merge(args)
+        case "rebase":
+            cmd_rebase(args)
+        case "rev-parse":
+            cmd_rev_parse(args)
+        case "rm":
+            cmd_rm(args)
+        case "show-ref":
+            cmd_show_ref(args)
+        case "tag":
+            cmd_tag(args)
+        case _:
+            raise Exception(f"Unknown command {args.command}")
+
 
 argsp = argsubparsers.add_parser("init", help="Initialize a new, empty repository.")
 argsp.add_argument("path",
@@ -40,10 +58,13 @@ argsp.add_argument("path",
                    nargs="?",
                    default=".",
                    help="Where to create the repository.")
+
+
 def cmd_init(args):
     repo_create(args.path)
 
-class GitRepository (object):
+
+class GitRepository(object):
     """A git repository"""
     worktree = None
     gitdir = None
@@ -70,14 +91,17 @@ class GitRepository (object):
         # if version != 0:
         #     raise Exception(f"Unsupported repositoryformatversion {version}")
 
+
 def repo_path(repo, *path):
     """Compute path under repo's gitdir"""
     return os.path.join(repo.gitdir, *path)
+
 
 def repo_file(repo, *path, mkdir=False):
     """Same as repo_path, but create dirname(*path) if absent. For example, repo_file(r, \"refs\", \"remotes\", \"origin\", \"HEAD\") will create .git/refs/remotes/origin."""
     if repo_dir(repo, *path[:-1], mkdir=mkdir):
         return repo_path(repo, *path)
+
 
 def repo_dir(repo, *path, mkdir=False):
     """Same as repo_path, but mkdir *path if absent if mkdir."""
@@ -95,6 +119,7 @@ def repo_dir(repo, *path, mkdir=False):
     else:
         return None
 
+
 def repo_create(path):
     """Create a new repository at path."""
 
@@ -105,7 +130,7 @@ def repo_create(path):
 
     if os.path.exists(repo.worktree):
         if not os.path.isdir(repo.worktree):
-            raise Exception ("%s is not a directory!" % path)
+            raise Exception("%s is not a directory!" % path)
         print(path)
         if os.path.exists(repo.gitdir) and os.listdir(repo.gitdir):
             raise Exception("%s is not empty!" % path)
@@ -131,6 +156,7 @@ def repo_create(path):
 
     return repo
 
+
 def repo_default_config():
     ret = configparser.ConfigParser()
 
@@ -140,6 +166,7 @@ def repo_default_config():
     ret.set("core", "bare", "false")
 
     return ret
+
 
 def repo_find(path=".", required=True):
     path = os.path.realpath(path)
@@ -162,6 +189,7 @@ def repo_find(path=".", required=True):
     # Recursive case
     return repo_find(parent, required)
 
+
 class GitObject(object):
     def __init__(self, data=None):
         if data != None:
@@ -180,10 +208,9 @@ whatever it takes to convert it into a meaningful representation.  What exactly 
         raise Exception("Unimplemented!")
 
     def init(self):
-        pass # Just do nothing. This is a reasonable default!
-    
-    
-    
+        pass  # Just do nothing. This is a reasonable default!
+
+
 def object_read(repo, sha):
     """Read object sha from Git repository repo.  Return a
     GitObject whose exact type depends on the object."""
@@ -193,7 +220,7 @@ def object_read(repo, sha):
     if not os.path.isfile(path):
         return None
 
-    with open (path, "rb") as f:
+    with open(path, "rb") as f:
         raw = zlib.decompress(f.read())
 
         # Read object type
@@ -203,20 +230,25 @@ def object_read(repo, sha):
         # Read and validate object size
         y = raw.find(b'\x00', x)
         size = int(raw[x:y].decode("ascii"))
-        if size != len(raw)-y-1:
+        if size != len(raw) - y - 1:
             raise Exception("Malformed object {0}: bad length".format(sha))
 
         # Pick constructor
         match fmt:
-            case b'commit' : c=GitCommit
-            case b'tree'   : c=GitTree
-            case b'tag'    : c=GitTag
-            case b'blob'   : c=GitBlob
+            case b'commit':
+                c = GitCommit
+            case b'tree':
+                c = GitTree
+            case b'tag':
+                c = GitTag
+            case b'blob':
+                c = GitBlob
             case _:
                 raise Exception("Unknown type {0} for object {1}".format(fmt.decode("ascii"), sha))
 
         # Call constructor and return object
-        return c(raw[y+1:])
+        return c(raw[y + 1:])
+
 
 def object_write(obj, repo=None):
     # Serialize object data
@@ -228,7 +260,7 @@ def object_write(obj, repo=None):
 
     if repo:
         # Compute path
-        path=repo_file(repo, "objects", sha[0:2], sha[2:], mkdir=True)
+        path = repo_file(repo, "objects", sha[0:2], sha[2:], mkdir=True)
 
         if not os.path.exists(path):
             with open(path, 'wb') as f:
@@ -236,15 +268,17 @@ def object_write(obj, repo=None):
                 f.write(zlib.compress(result))
     return sha
 
+
 class GitBlob(GitObject):
-    fmt=b'blob'
+    fmt = b'blob'
 
     def serialize(self):
         return self.blobdata
 
     def deserialize(self, data):
         self.blobdata = data
-        
+
+
 argsp = argsubparsers.add_parser("cat-file",
                                  help="Provide content of repository objects")
 
@@ -257,14 +291,17 @@ argsp.add_argument("object",
                    metavar="object",
                    help="The object to display")
 
+
 def cmd_cat_file(args):
     repo = repo_find()
     cat_file(repo, args.object, fmt=args.type.encode())
 
+
 def cat_file(repo, obj, fmt=None):
     obj = object_read(repo, object_find(repo, obj, fmt=fmt))
     sys.stdout.buffer.write(obj.serialize())
-    
+
+
 def object_find(repo, name, fmt=None, follow=True):
     return name
 
@@ -299,16 +336,22 @@ def cmd_hash_object(args):
         sha = object_hash(fd, args.type.encode(), repo)
         print(sha)
 
+
 def object_hash(fd, fmt, repo=None):
     """ Hash object, writing it to repo if provided."""
     data = fd.read()
 
     # Choose constructor according to fmt argument
     match fmt:
-        case b'commit' : obj=GitCommit(data)
-        case b'tree'   : obj=GitTree(data)
-        case b'tag'    : obj=GitTag(data)
-        case b'blob'   : obj=GitBlob(data)
-        case _: raise Exception("Unknown type %s!" % fmt)
+        case b'commit':
+            obj = GitCommit(data)
+        case b'tree':
+            obj = GitTree(data)
+        case b'tag':
+            obj = GitTag(data)
+        case b'blob':
+            obj = GitBlob(data)
+        case _:
+            raise Exception("Unknown type %s!" % fmt)
 
     return object_write(obj, repo)
